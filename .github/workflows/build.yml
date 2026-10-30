@@ -7,15 +7,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Find project
         run: |
-          echo "Files in repo:"; ls -la
           if [ -f settings.gradle.kts ]; then
             echo "PROJECT=$PWD" >> $GITHUB_ENV
           else
-            Z=$(find . -iname "*.zip" -not -path "./.git/*" | head -n1)
-            if [ -z "$Z" ]; then echo "ZIP NOT FOUND"; exit 1; fi
-            echo "Using $Z"
+            Z=$(find . -iname '*.zip' -not -path './.git/*' -print0 | while IFS= read -r -d '' f; do echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -n1 | cut -d' ' -f2-)
+            echo "Using zip: $Z"
+            [ -z "$Z" ] && exit 1
             mkdir -p /tmp/p
             unzip -q "$Z" -d /tmp/p
             D=$(dirname "$(find /tmp/p -name settings.gradle.kts | head -n1)")
@@ -32,5 +33,5 @@ jobs:
         working-directory: ${{ env.PROJECT }}
       - uses: actions/upload-artifact@v4
         with:
-          name: SlayerBot-apk
+          name: SlayerBot-apk-${{ github.run_number }}
           path: ${{ env.PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
